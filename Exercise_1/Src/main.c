@@ -1,8 +1,8 @@
-/**
+﻿/**
  ******************************************************************************
  * @file           : main.c
- * @brief          : Lab 1 - Exercise 1: Two LEDs (RED on PA5, YELLOW on PA6)
- *                   switched every 2 seconds.
+ * @brief          : Lab 1 - Exercise 2: Traffic light (RED 5s, YELLOW 2s, GREEN 3s)
+ *                   on PA5 (LED-RED), PA6 (LED-YELLOW), PA7 (LED-GREEN).
  ******************************************************************************
  */
 #include "main.h"
@@ -12,35 +12,30 @@ static void MX_GPIO_Init(void);
 
 int main(void)
 {
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
-
-  /* Configure the system clock */
   SystemClock_Config();
-
-  /* Initialize all configured peripherals */
   MX_GPIO_Init();
 
-  /* USER CODE BEGIN 2 */
-  // Initial state: LED_RED ON (RESET), LED_YELLOW OFF (SET)
-  HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(LED_YELLOW_GPIO_Port, LED_YELLOW_Pin, GPIO_PIN_SET);
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
-    HAL_GPIO_TogglePin(LED_YELLOW_GPIO_Port, LED_YELLOW_Pin);
+    // RED ON for 5 seconds (PA5 = RESET, PA6 = SET, PA7 = SET)
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6 | GPIO_PIN_7, GPIO_PIN_SET);
+    HAL_Delay(5000);
+
+    // YELLOW ON for 2 seconds (PA6 = RESET, PA5 = SET, PA7 = SET)
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5 | GPIO_PIN_7, GPIO_PIN_SET);
     HAL_Delay(2000);
+
+    // GREEN ON for 3 seconds (PA7 = RESET, PA5 = SET, PA6 = SET)
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5 | GPIO_PIN_6, GPIO_PIN_SET);
+    HAL_Delay(3000);
     /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
   }
-  /* USER CODE END 3 */
 }
-
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -76,7 +71,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /*Configure GPIO pin Output Level */
+  /*Configure GPIO pin Output Level: Default HIGH (LEDs OFF for active-low) */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_All, GPIO_PIN_SET);
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_All, GPIO_PIN_SET);
 
