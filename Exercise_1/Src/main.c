@@ -1,8 +1,8 @@
-/**
+﻿/**
  ******************************************************************************
  * @file           : main.c
- * @brief          : Lab 1 - Exercise 1: Two LEDs (RED on PA5, YELLOW on PA6)
- *                   switched every 2 seconds.
+ * @brief          : Lab 1 - Exercise 4: Display number 0..9 on 7SEG-COM-ANODE
+ *                   connected to PB0..PB6 via display7SEG(int num).
  ******************************************************************************
  */
 #include "main.h"
@@ -10,37 +10,52 @@
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 
+/* USER CODE BEGIN 0 */
+// Common Anode 7-segment table (bit 0 = PB0/a ... bit 6 = PB6/g; 0 = ON, 1 = OFF)
+static const uint8_t seg7_code[10] = {
+  0x40, // 0
+  0x79, // 1
+  0x24, // 2
+  0x30, // 3
+  0x19, // 4
+  0x12, // 5
+  0x02, // 6
+  0x78, // 7
+  0x00, // 8
+  0x10  // 9
+};
+
+void display7SEG(int num)
+{
+  if (num < 0 || num > 9) return;
+  uint8_t pattern = seg7_code[num];
+  for (int i = 0; i < 7; i++)
+  {
+    HAL_GPIO_WritePin(GPIOB, (uint16_t)(1U << i),
+                      (pattern & (1U << i)) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  }
+}
+/* USER CODE END 0 */
+
 int main(void)
 {
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
-
-  /* Configure the system clock */
   SystemClock_Config();
-
-  /* Initialize all configured peripherals */
   MX_GPIO_Init();
 
   /* USER CODE BEGIN 2 */
-  // Initial state: LED_RED ON (RESET), LED_YELLOW OFF (SET)
-  HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(LED_YELLOW_GPIO_Port, LED_YELLOW_Pin, GPIO_PIN_SET);
+  int counter = 0;
   /* USER CODE END 2 */
 
-  /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
-    HAL_GPIO_TogglePin(LED_YELLOW_GPIO_Port, LED_YELLOW_Pin);
-    HAL_Delay(2000);
+    if (counter >= 10) counter = 0;
+    display7SEG(counter++);
+    HAL_Delay(1000);
     /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
   }
-  /* USER CODE END 3 */
 }
-
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -76,7 +91,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /*Configure GPIO pin Output Level */
+  /*Configure GPIO pin Output Level: Default HIGH (LEDs OFF for active-low) */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_All, GPIO_PIN_SET);
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_All, GPIO_PIN_SET);
 
