@@ -1,8 +1,8 @@
-/**
+﻿/**
  ******************************************************************************
  * @file           : main.c
- * @brief          : Lab 1 - Exercise 1: Two LEDs (RED on PA5, YELLOW on PA6)
- *                   switched every 2 seconds.
+ * @brief          : Lab 1 - Exercise 5: Integrate 7SEG countdown with 4-way
+ *                   traffic light (RED 5s, GREEN 3s, YELLOW 2s).
  ******************************************************************************
  */
 #include "main.h"
@@ -10,37 +10,84 @@
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 
+/* USER CODE BEGIN 0 */
+#define RED1_Pin    GPIO_PIN_5
+#define YELLOW1_Pin GPIO_PIN_6
+#define GREEN1_Pin  GPIO_PIN_7
+
+#define RED2_Pin    GPIO_PIN_8
+#define YELLOW2_Pin GPIO_PIN_9
+#define GREEN2_Pin  GPIO_PIN_10
+
+static const uint8_t seg7_code[10] = {
+  0x40, 0x79, 0x24, 0x30, 0x19,
+  0x12, 0x02, 0x78, 0x00, 0x10
+};
+
+void display7SEG(int num)
+{
+  if (num < 0 || num > 9) return;
+  uint8_t pattern = seg7_code[num];
+  for (int i = 0; i < 7; i++)
+  {
+    HAL_GPIO_WritePin(GPIOB, (uint16_t)(1U << i),
+                      (pattern & (1U << i)) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  }
+}
+
+void setTrafficWay1(GPIO_PinState r, GPIO_PinState y, GPIO_PinState g) {
+  HAL_GPIO_WritePin(GPIOA, RED1_Pin, r);
+  HAL_GPIO_WritePin(GPIOA, YELLOW1_Pin, y);
+  HAL_GPIO_WritePin(GPIOA, GREEN1_Pin, g);
+}
+
+void setTrafficWay2(GPIO_PinState r, GPIO_PinState y, GPIO_PinState g) {
+  HAL_GPIO_WritePin(GPIOA, RED2_Pin, r);
+  HAL_GPIO_WritePin(GPIOA, YELLOW2_Pin, y);
+  HAL_GPIO_WritePin(GPIOA, GREEN2_Pin, g);
+}
+/* USER CODE END 0 */
+
 int main(void)
 {
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
-
-  /* Configure the system clock */
   SystemClock_Config();
-
-  /* Initialize all configured peripherals */
   MX_GPIO_Init();
 
   /* USER CODE BEGIN 2 */
-  // Initial state: LED_RED ON (RESET), LED_YELLOW OFF (SET)
-  HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(LED_YELLOW_GPIO_Port, LED_YELLOW_Pin, GPIO_PIN_SET);
+  int tick = 0; // 0..9 seconds cycle
   /* USER CODE END 2 */
 
-  /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
-    HAL_GPIO_TogglePin(LED_YELLOW_GPIO_Port, LED_YELLOW_Pin);
-    HAL_Delay(2000);
+    if (tick < 3) {
+      // Way 1 RED (countdown 5..3), Way 2 GREEN (3..1)
+      setTrafficWay1(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_SET);
+      setTrafficWay2(GPIO_PIN_SET, GPIO_PIN_SET, GPIO_PIN_RESET);
+      display7SEG(5 - tick);
+    } else if (tick < 5) {
+      // Way 1 RED (countdown 2..1), Way 2 YELLOW (2..1)
+      setTrafficWay1(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_SET);
+      setTrafficWay2(GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_SET);
+      display7SEG(5 - tick);
+    } else if (tick < 8) {
+      // Way 1 GREEN (countdown 3..1), Way 2 RED (5..3)
+      setTrafficWay1(GPIO_PIN_SET, GPIO_PIN_SET, GPIO_PIN_RESET);
+      setTrafficWay2(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_SET);
+      display7SEG(8 - tick);
+    } else {
+      // Way 1 YELLOW (countdown 2..1), Way 2 RED (2..1)
+      setTrafficWay1(GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_SET);
+      setTrafficWay2(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_SET);
+      display7SEG(10 - tick);
+    }
+
+    HAL_Delay(1000);
+    tick = (tick + 1) % 10;
     /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
   }
-  /* USER CODE END 3 */
 }
-
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -76,7 +123,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /*Configure GPIO pin Output Level */
+  /*Configure GPIO pin Output Level: Default HIGH (LEDs OFF for active-low) */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_All, GPIO_PIN_SET);
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_All, GPIO_PIN_SET);
 
