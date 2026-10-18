@@ -1,8 +1,8 @@
-/**
+﻿/**
  ******************************************************************************
  * @file           : main.c
- * @brief          : Lab 1 - Exercise 1: Two LEDs (RED on PA5, YELLOW on PA6)
- *                   switched every 2 seconds.
+ * @brief          : Lab 1 - Exercise 10: Complete 12-LED analog clock displaying
+ *                   hour, minute, and second hands on PA4..PA15.
  ******************************************************************************
  */
 #include "main.h"
@@ -10,37 +10,70 @@
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 
+/* USER CODE BEGIN 0 */
+void clearAllClock(void)
+{
+  HAL_GPIO_WritePin(GPIOA, 0xFFF0, GPIO_PIN_SET);
+}
+
+void setNumberOnClock(int num)
+{
+  if (num >= 0 && num < 12)
+  {
+    HAL_GPIO_WritePin(GPIOA, (uint16_t)(GPIO_PIN_4 << num), GPIO_PIN_RESET);
+  }
+}
+
+void clearNumberOnClock(int num)
+{
+  if (num >= 0 && num < 12)
+  {
+    HAL_GPIO_WritePin(GPIOA, (uint16_t)(GPIO_PIN_4 << num), GPIO_PIN_SET);
+  }
+}
+/* USER CODE END 0 */
+
 int main(void)
 {
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
-
-  /* Configure the system clock */
   SystemClock_Config();
-
-  /* Initialize all configured peripherals */
   MX_GPIO_Init();
 
   /* USER CODE BEGIN 2 */
-  // Initial state: LED_RED ON (RESET), LED_YELLOW OFF (SET)
-  HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(LED_YELLOW_GPIO_Port, LED_YELLOW_Pin, GPIO_PIN_SET);
+  int hour = 0;
+  int minute = 0;
+  int second = 0;
+  clearAllClock();
   /* USER CODE END 2 */
 
-  /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
-    HAL_GPIO_TogglePin(LED_YELLOW_GPIO_Port, LED_YELLOW_Pin);
-    HAL_Delay(2000);
+    clearAllClock();
+    setNumberOnClock(hour % 12);
+    setNumberOnClock(minute / 5);
+    setNumberOnClock(second / 5);
+
+    HAL_Delay(1000);
+
+    second++;
+    if (second >= 60)
+    {
+      second = 0;
+      minute++;
+    }
+    if (minute >= 60)
+    {
+      minute = 0;
+      hour++;
+    }
+    if (hour >= 24)
+    {
+      hour = 0;
+    }
     /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
   }
-  /* USER CODE END 3 */
 }
-
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -76,7 +109,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /*Configure GPIO pin Output Level */
+  /*Configure GPIO pin Output Level: Default HIGH (LEDs OFF for active-low) */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_All, GPIO_PIN_SET);
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_All, GPIO_PIN_SET);
 
