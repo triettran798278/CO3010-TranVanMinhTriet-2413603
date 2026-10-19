@@ -30,22 +30,26 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-REM [4] Xuat file .hex/.elf/.bin sang Debug cho Proteus
-echo [4/4] Cap nhat file nap Exercise_1.hex cho Proteus...
+REM [4] Xuat file .hex/.elf/.bin sang Debug va ..\build\Debug cho Proteus
+echo [4/4] Cap nhat file HEX cho Proteus...
 if not exist Debug mkdir Debug
 copy /Y build\Exercise_1.hex Debug\Exercise_1.hex >nul
 copy /Y build\Exercise_1.elf Debug\Exercise_1.elf >nul
 copy /Y build\Exercise_1.bin Debug\Exercise_1.bin >nul
 
+if not exist "..\build\Debug" mkdir "..\build\Debug"
+copy /Y build\Exercise_1.hex "..\build\Debug\CO3010.hex" >nul
+copy /Y build\Exercise_1.hex "..\build\Debug\Exercise_1.hex" >nul
+
 echo.
 echo ==============================================================
 echo [THANH CONG] Da build xong branch [%CURRENT_BRANCH%]!
-echo  - File HEX cho Proteus: %~dp0Debug\Exercise_1.hex
-echo  - File BIN cho ST-Link: %~dp0build\Exercise_1.bin
+echo  - File HEX 1: %~dp0Debug\Exercise_1.hex
+echo  - File HEX 2: %~dp0..\build\Debug\CO3010.hex
 echo ==============================================================
 
-REM [5] Neu cam mach ST-Link (hoac truyen --flash) thi nap xuong board
 if "%1"=="--flash" (
     STM32_Programmer_CLI -c port=SWD -w build/Exercise_1.bin 0x08000000 -v -rst
 )
+
 
