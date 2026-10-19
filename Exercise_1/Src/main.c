@@ -2,7 +2,7 @@
  ******************************************************************************
  * @file           : main.c
  * @brief          : Lab 1 - Exercise 9: Implement clearNumberOnClock(int num)
- *                   (num = 0..11 mapped to PA4..PA15).
+ *                   (num = 0..11 mapped to PA4..PA15) with a single HAL_Delay(1000).
  ******************************************************************************
  */
 #include "main.h"
@@ -47,10 +47,11 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    clearNumberOnClock((num + 11) % 12);
     setNumberOnClock(num);
-    HAL_Delay(500);
-    clearNumberOnClock(num);
     num = (num + 1) % 12;
+
+    HAL_Delay(1000);
     /* USER CODE END WHILE */
   }
 }
