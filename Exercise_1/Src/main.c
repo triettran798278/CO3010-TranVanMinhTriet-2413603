@@ -2,7 +2,8 @@
  ******************************************************************************
  * @file           : main.c
  * @brief          : Lab 1 - Exercise 2: Traffic light (RED 5s, YELLOW 2s, GREEN 3s)
- *                   on PA5 (LED-RED), PA6 (LED-YELLOW), PA7 (LED-GREEN).
+ *                   on PA5 (LED-RED), PA6 (LED-YELLOW), PA7 (LED-GREEN)
+ *                   using a single HAL_Delay(1000) at the end of while(1).
  ******************************************************************************
  */
 #include "main.h"
@@ -16,23 +17,36 @@ int main(void)
   SystemClock_Config();
   MX_GPIO_Init();
 
+  /* USER CODE BEGIN 2 */
+  int counter = 0; // 0..9 seconds cycle (5s RED, 2s YELLOW, 3s GREEN)
+  /* USER CODE END 2 */
+
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // RED ON for 5 seconds (PA5 = RESET, PA6 = SET, PA7 = SET)
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6 | GPIO_PIN_7, GPIO_PIN_SET);
-    HAL_Delay(5000);
+    if (counter < 5)
+    {
+      // RED ON for 5 seconds (0..4)
+      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6 | GPIO_PIN_7, GPIO_PIN_SET);
+    }
+    else if (counter < 7)
+    {
+      // YELLOW ON for 2 seconds (5..6)
+      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5 | GPIO_PIN_7, GPIO_PIN_SET);
+    }
+    else
+    {
+      // GREEN ON for 3 seconds (7..9)
+      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5 | GPIO_PIN_6, GPIO_PIN_SET);
+    }
 
-    // YELLOW ON for 2 seconds (PA6 = RESET, PA5 = SET, PA7 = SET)
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5 | GPIO_PIN_7, GPIO_PIN_SET);
-    HAL_Delay(2000);
+    counter++;
+    if (counter >= 10) counter = 0;
 
-    // GREEN ON for 3 seconds (PA7 = RESET, PA5 = SET, PA6 = SET)
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5 | GPIO_PIN_6, GPIO_PIN_SET);
-    HAL_Delay(3000);
+    HAL_Delay(1000);
     /* USER CODE END WHILE */
   }
 }
