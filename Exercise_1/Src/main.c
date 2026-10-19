@@ -2,7 +2,7 @@
  ******************************************************************************
  * @file           : main.c
  * @brief          : Lab 1 - Exercise 6: Test 12 analog clock LEDs connected
- *                   from PA4 to PA15 in sequence.
+ *                   from PA4 to PA15 in sequence using a single HAL_Delay(1000).
  ******************************************************************************
  */
 #include "main.h"
@@ -28,8 +28,10 @@ int main(void)
     // Turn on current LED in sequence
     HAL_GPIO_WritePin(GPIOA, (uint16_t)(GPIO_PIN_4 << idx), GPIO_PIN_RESET);
 
-    idx = (idx + 1) % 12;
-    HAL_Delay(500);
+    idx++;
+    if (idx >= 12) idx = 0;
+
+    HAL_Delay(1000);
     /* USER CODE END WHILE */
   }
 }
