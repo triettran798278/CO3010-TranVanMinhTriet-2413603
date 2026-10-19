@@ -4,6 +4,7 @@
  * @brief          : Lab 1 - Exercise 3: 4-way traffic light
  *                   Way 1 (Vertical): PA5 (RED1), PA6 (YELLOW1), PA7 (GREEN1)
  *                   Way 2 (Horizontal): PA8 (RED2), PA9 (YELLOW2), PA10 (GREEN2)
+ *                   using a single HAL_Delay(1000) at the end of while(1).
  ******************************************************************************
  */
 #include "main.h"
@@ -39,28 +40,42 @@ int main(void)
   SystemClock_Config();
   MX_GPIO_Init();
 
+  /* USER CODE BEGIN 2 */
+  int counter = 0; // 0..9 seconds cycle
+  /* USER CODE END 2 */
+
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // Phase 1 (3s): Way 1 RED (5s total), Way 2 GREEN (3s)
-    setTrafficWay1(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_SET);
-    setTrafficWay2(GPIO_PIN_SET, GPIO_PIN_SET, GPIO_PIN_RESET);
-    HAL_Delay(3000);
+    if (counter < 3)
+    {
+      // Phase 1 (3s): Way 1 RED (5s total), Way 2 GREEN (3s)
+      setTrafficWay1(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_SET);
+      setTrafficWay2(GPIO_PIN_SET, GPIO_PIN_SET, GPIO_PIN_RESET);
+    }
+    else if (counter < 5)
+    {
+      // Phase 2 (2s): Way 1 still RED, Way 2 YELLOW (2s)
+      setTrafficWay1(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_SET);
+      setTrafficWay2(GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_SET);
+    }
+    else if (counter < 8)
+    {
+      // Phase 3 (3s): Way 1 GREEN (3s), Way 2 RED (5s total)
+      setTrafficWay1(GPIO_PIN_SET, GPIO_PIN_SET, GPIO_PIN_RESET);
+      setTrafficWay2(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_SET);
+    }
+    else
+    {
+      // Phase 4 (2s): Way 1 YELLOW (2s), Way 2 still RED
+      setTrafficWay1(GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_SET);
+      setTrafficWay2(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_SET);
+    }
 
-    // Phase 2 (2s): Way 1 still RED, Way 2 YELLOW (2s)
-    setTrafficWay1(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_SET);
-    setTrafficWay2(GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_SET);
-    HAL_Delay(2000);
+    counter++;
+    if (counter >= 10) counter = 0;
 
-    // Phase 3 (3s): Way 1 GREEN (3s), Way 2 RED (5s total)
-    setTrafficWay1(GPIO_PIN_SET, GPIO_PIN_SET, GPIO_PIN_RESET);
-    setTrafficWay2(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_SET);
-    HAL_Delay(3000);
-
-    // Phase 4 (2s): Way 1 YELLOW (2s), Way 2 still RED
-    setTrafficWay1(GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_SET);
-    setTrafficWay2(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_SET);
-    HAL_Delay(2000);
+    HAL_Delay(1000);
     /* USER CODE END WHILE */
   }
 }
