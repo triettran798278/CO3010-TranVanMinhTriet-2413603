@@ -30,22 +30,18 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-REM [4] Xuat file .hex/.elf/.bin sang Debug va ..\build\Debug cho Proteus
-echo [4/4] Cap nhat file HEX cho Proteus...
+REM [4] Xuat file .hex/.elf/.bin sang Debug cho Proteus
+echo [4/4] Cap nhat file Exercise_1.hex cho Proteus...
 if not exist Debug mkdir Debug
 copy /Y build\Exercise_1.hex Debug\Exercise_1.hex >nul
 copy /Y build\Exercise_1.elf Debug\Exercise_1.elf >nul
 copy /Y build\Exercise_1.bin Debug\Exercise_1.bin >nul
 
-if not exist "..\build\Debug" mkdir "..\build\Debug"
-copy /Y build\Exercise_1.hex "..\build\Debug\CO3010.hex" >nul
-copy /Y build\Exercise_1.hex "..\build\Debug\Exercise_1.hex" >nul
-
 echo.
 echo ==============================================================
 echo [THANH CONG] Da build xong branch [%CURRENT_BRANCH%]!
-echo  - File HEX 1: %~dp0Debug\Exercise_1.hex
-echo  - File HEX 2: %~dp0..\build\Debug\CO3010.hex
+echo  - File HEX cho Proteus: %~dp0Debug\Exercise_1.hex
+echo  - File Proteus        : C:\Users\Triet\Documents\Year3\VXL\lab1.pdsprj
 echo ==============================================================
 
 if "%1"=="--flash" (
