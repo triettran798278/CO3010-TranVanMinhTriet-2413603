@@ -1,10 +1,11 @@
 /**
  ******************************************************************************
  * @file           : main.c
- * @brief          : Lab 2 - Exercise 4: 1Hz scanning frequency for 4 7-SEG LEDs
- *                   - Each LED displayed for 250ms (25 * 10ms ticks)
- *                   - 4 LEDs * 250ms = 1000ms = 1s cycle (f = 1Hz)
- *                   - DOT (PA4) blinks every second (100 * 10ms = 1000ms)
+ * @brief          : Lab 2 - Exercise 5: Digital clock with hour & minute on 4 7-SEGs
+ *                   - hour = 15, minute = 8, second = 50
+ *                   - updateClockBuffer() formats hour and minute into led_buffer[4]
+ *                   - 7-segment display scanned at 1Hz (250ms per digit) via TIM2
+ *                   - Time incremented every 1s using HAL_Delay(1000)
  ******************************************************************************
  */
 #include "main.h"
@@ -18,7 +19,11 @@ static void MX_TIM2_Init(void);
 /* USER CODE BEGIN 0 */
 const int MAX_LED = 4;
 int index_led = 0;
-int led_buffer[4] = {1, 2, 3, 4};
+int led_buffer[4] = {0, 0, 0, 0};
+
+int hour = 15;
+int minute = 8;
+int second = 50;
 
 static const uint8_t seg7_code[10] = {
   0x40, 0x79, 0x24, 0x30, 0x19,
@@ -35,8 +40,6 @@ void display7SEG(int num)
 
 void setEnablePins(int en0, int en1, int en2, int en3)
 {
-  // PA6=EN0, PA7=EN1, PA8=EN2, PA9=EN3
-  // 0 = ON (RESET), 1 = OFF (SET)
   uint32_t set_mask = 0;
   uint32_t reset_mask = 0;
 
@@ -53,28 +56,32 @@ void update7SEG(int index)
   switch (index)
   {
     case 0:
-      // Display the first 7SEG with led_buffer[0]
       setEnablePins(0, 1, 1, 1);
       display7SEG(led_buffer[0]);
       break;
     case 1:
-      // Display the second 7SEG with led_buffer[1]
       setEnablePins(1, 0, 1, 1);
       display7SEG(led_buffer[1]);
       break;
     case 2:
-      // Display the third 7SEG with led_buffer[2]
       setEnablePins(1, 1, 0, 1);
       display7SEG(led_buffer[2]);
       break;
     case 3:
-      // Display the forth 7SEG with led_buffer[3]
       setEnablePins(1, 1, 1, 0);
       display7SEG(led_buffer[3]);
       break;
     default:
       break;
   }
+}
+
+void updateClockBuffer(void)
+{
+  led_buffer[0] = hour / 10;
+  led_buffer[1] = hour % 10;
+  led_buffer[2] = minute / 10;
+  led_buffer[3] = minute % 10;
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -114,13 +121,30 @@ int main(void)
   MX_TIM2_Init();
 
   /* USER CODE BEGIN 2 */
+  updateClockBuffer();
   HAL_TIM_Base_Start_IT(&htim2);
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* Everything handled in Timer interrupt */
+    second++;
+    if (second >= 60)
+    {
+      second = 0;
+      minute++;
+    }
+    if (minute >= 60)
+    {
+      minute = 0;
+      hour++;
+    }
+    if (hour >= 24)
+    {
+      hour = 0;
+    }
+    updateClockBuffer();
+    HAL_Delay(1000);
   }
   /* USER CODE END WHILE */
 }
