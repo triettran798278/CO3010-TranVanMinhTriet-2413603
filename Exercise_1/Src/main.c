@@ -2,218 +2,27 @@
  ******************************************************************************
  * @file           : main.c
  * @brief          : Lab 2 - Exercise 10: 8x8 LED Matrix marquee animation
- *                   - Based directly on main_lab2_ex9.c
- *                   - Character 'A' shifted to the left smoothly across 16-width buffer
- *                   - MATRIX-8X8-RED + ULN2803
- *                   - Column pins: PA2, PA3, PA10..PA15 (ENM0..ENM7)
- *                   - Row pins: PB8..PB15 (ROW0..ROW7)
- *                   - Correct polarity from main_lab2_ex9.c:
- *                       Active Column: GPIO_PIN_RESET (pull-up provides +3.3V)
- *                       Active Row:    GPIO_PIN_RESET (GND cathode -> LED on)
- *                   - 7-Segment display: EN0..EN3 on PA6..PA9, SEG0..SEG6 on PB0..PB6
- *                   - DOT on PA4
- *                   - Software timers (TIM2 10ms interrupt):
- *                       Timer 0 (1000ms): Clock timekeeping (hour/min/sec)
- *                       Timer 1 (250ms): 7-segment display scanning
- *                       Timer 2 (500ms): DOT toggle
- *                       Timer 3 (50ms): Matrix column scanning (from main_lab2_ex9.c)
- *                       Timer 4 (300ms): Matrix marquee scroll left animation
+ *                   - Character 'A' shifted to the left smoothly
+ *                   - Modular architecture (.h and .c files)
+ *                   - Software timers (TIM2 10ms interrupt)
  ******************************************************************************
  */
 #include "main.h"
+#include "software_timer.h"
+#include "seg7.h"
+#include "matrix.h"
 
-#define MATRIX_ROW_PORT    GPIOB
-#define MATRIX_COL_PORT    GPIOA
-#define DIGIT_EN_PORT      GPIOA
-#define SEG_PORT           GPIOB
-#define LED_D1_PIN         GPIO_PIN_5
-#define DOT_PIN            GPIO_PIN_4
-#define LED_NUM            4
-#define TICK_INTERVAL_MS   10
-#define SOFT_TIMER_NUM_MAX 10
-#define MAX_LED_MATRIX     8
-#define MATRIX_SCROLL_WIDTH 16
+#define LED_D1_PIN  GPIO_PIN_5
+#define DOT_PIN     GPIO_PIN_4
 
 TIM_HandleTypeDef htim2;
 
-/* Row pins PB8 -> PB15 (Anodes) */
-static uint16_t matrix_row_pins[8] = {
-    GPIO_PIN_8,  // ROW0
-    GPIO_PIN_9,  // ROW1
-    GPIO_PIN_10, // ROW2
-    GPIO_PIN_11, // ROW3
-    GPIO_PIN_12, // ROW4
-    GPIO_PIN_13, // ROW5
-    GPIO_PIN_14, // ROW6
-    GPIO_PIN_15  // ROW7
-};
-
-/* Column enable pins ENM0 -> ENM7 (ULN2803 inputs on GPIOA) */
-static uint16_t matrix_col_pins[8] = {
-    GPIO_PIN_2,  // ENM0 -> COL0
-    GPIO_PIN_3,  // ENM1 -> COL1
-    GPIO_PIN_10, // ENM2 -> COL2
-    GPIO_PIN_11, // ENM3 -> COL3
-    GPIO_PIN_12, // ENM4 -> COL4
-    GPIO_PIN_13, // ENM5 -> COL5
-    GPIO_PIN_14, // ENM6 -> COL6
-    GPIO_PIN_15  // ENM7 -> COL7
-};
-
-/* 7-Segment digit enable pins EN0 -> EN3 on GPIOA */
-static uint16_t digit_en_pins[4] = {
-    GPIO_PIN_6, // EN0
-    GPIO_PIN_7, // EN1
-    GPIO_PIN_8, // EN2
-    GPIO_PIN_9  // EN3
-};
-
-/* Digits to display on the 4 7-segment displays */
-static uint8_t led_buffer[4] = {1, 2, 3, 0};
-
-/* 8x8 LED Matrix active display buffer */
-static uint8_t matrix_bitmap[8] = {
-    0x00, 0xFC, 0x12, 0x11, 0x11, 0x12, 0xFC, 0x00
-};
-
-/* 16-column scroll buffer: 'A' followed by 8 blank columns */
-static const uint8_t matrix_scroll_data[MATRIX_SCROLL_WIDTH] = {
-    0x00, 0xFC, 0x12, 0x11, 0x11, 0x12, 0xFC, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-};
-static int matrix_scroll_position = 0;
-
 static volatile uint8_t current_matrix_col = 0;
 static volatile uint8_t current_seg7_digit = 0;
-static volatile uint8_t timer_flag[SOFT_TIMER_NUM_MAX] = {0};
-static volatile uint16_t timer_counter[SOFT_TIMER_NUM_MAX] = {0};
-
-int hour = 15, minute = 8, second = 50;
-
-/* 7-Segment Common Anode code (0 = ON, 1 = OFF) */
-static const uint8_t seg7_code[10] = {
-  0x40, 0x79, 0x24, 0x30, 0x19,
-  0x12, 0x02, 0x78, 0x00, 0x10
-};
 
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
-
-void setTimer(uint8_t timer_index, uint16_t duration_ms)
-{
-  if (timer_index < SOFT_TIMER_NUM_MAX)
-  {
-    timer_counter[timer_index] = duration_ms / TICK_INTERVAL_MS;
-    timer_flag[timer_index] = 0;
-  }
-}
-
-void timerRun(void)
-{
-  for (uint8_t i = 0; i < SOFT_TIMER_NUM_MAX; i++)
-  {
-    if (timer_counter[i] > 0)
-    {
-      timer_counter[i]--;
-      if (timer_counter[i] == 0)
-      {
-        timer_flag[i] = 1;
-      }
-    }
-  }
-}
-
-void display7SEG(int num)
-{
-  if (num < 0 || num > 9) return;
-  uint8_t pattern = seg7_code[num];
-  for (int i = 0; i < 7; i++)
-  {
-    HAL_GPIO_WritePin(GPIOB, (uint16_t)(1U << i),
-                      (pattern & (1U << i)) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-  }
-}
-
-void update7SEG(int index)
-{
-  for (uint8_t i = 0; i < LED_NUM; i++)
-  {
-    HAL_GPIO_WritePin(GPIOA, digit_en_pins[i], GPIO_PIN_SET);
-  }
-
-  if (index >= 0 && index < LED_NUM)
-  {
-    HAL_GPIO_WritePin(GPIOA, digit_en_pins[index], GPIO_PIN_RESET);
-    display7SEG(led_buffer[index]);
-  }
-}
-
-void updateClockBuffer(void)
-{
-  led_buffer[0] = hour / 10;
-  led_buffer[1] = hour % 10;
-  led_buffer[2] = minute / 10;
-  led_buffer[3] = minute % 10;
-}
-
-void clearMatrix(void)
-{
-  for (uint8_t i = 0; i < MAX_LED_MATRIX; i++)
-  {
-    HAL_GPIO_WritePin(MATRIX_COL_PORT, matrix_col_pins[i], GPIO_PIN_SET);
-  }
-  for (uint8_t row = 0; row < MAX_LED_MATRIX; row++)
-  {
-    HAL_GPIO_WritePin(MATRIX_ROW_PORT, matrix_row_pins[row], GPIO_PIN_SET);
-  }
-}
-
-void updateMatrixRows(uint8_t col_index)
-{
-  if (col_index >= MAX_LED_MATRIX)
-    return;
-
-  // Turn off all columns and rows first
-  clearMatrix();
-
-  // Enable active column: RESET allows pull-up resistor to pull column up to +3.3V
-  HAL_GPIO_WritePin(MATRIX_COL_PORT, matrix_col_pins[col_index], GPIO_PIN_RESET);
-
-  // Set rows: bit=1 -> RESET pulls cathode to GND -> LED ON; bit=0 -> SET (+3.3V) -> LED OFF
-  uint8_t row_data = matrix_bitmap[col_index];
-  for (uint8_t row = 0; row < MAX_LED_MATRIX; row++)
-  {
-    GPIO_PinState pin_state = (row_data & (1U << row)) ? GPIO_PIN_RESET : GPIO_PIN_SET;
-    HAL_GPIO_WritePin(MATRIX_ROW_PORT, matrix_row_pins[row], pin_state);
-  }
-}
-
-void updateLedMatrix(uint8_t index)
-{
-  switch (index)
-  {
-    case 0: updateMatrixRows(0); break;
-    case 1: updateMatrixRows(1); break;
-    case 2: updateMatrixRows(2); break;
-    case 3: updateMatrixRows(3); break;
-    case 4: updateMatrixRows(4); break;
-    case 5: updateMatrixRows(5); break;
-    case 6: updateMatrixRows(6); break;
-    case 7: updateMatrixRows(7); break;
-    default: break;
-  }
-}
-
-void scrollMatrixLeft(void)
-{
-  matrix_scroll_position = (matrix_scroll_position + 1) % MATRIX_SCROLL_WIDTH;
-  for (int col = 0; col < MAX_LED_MATRIX; col++)
-  {
-    int data_index = (col + matrix_scroll_position) % MATRIX_SCROLL_WIDTH;
-    matrix_bitmap[col] = matrix_scroll_data[data_index];
-  }
-}
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -241,8 +50,8 @@ int main(void)
   setTimer(0, 1000); // Timer 0: 1 second clock increment
   setTimer(1, 250);  // Timer 1: 250 ms 7-seg scanning
   setTimer(2, 500);  // Timer 2: 500 ms DOT toggle
-  setTimer(3, 50);   // Timer 3: 50 ms matrix column scanning (from main_lab2_ex9.c)
-  setTimer(4, 500);  // Timer 4: 500 ms marquee scroll left animation (smooth & clearly visible in Proteus)
+  setTimer(3, 50);   // Timer 3: 50 ms matrix column scanning
+  setTimer(4, 500);  // Timer 4: 500 ms marquee scroll left animation
 
   while (1)
   {
@@ -373,7 +182,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /* Set default safe pin states (from main_lab2_ex9.c):
+  /* Set default safe pin states:
    * Columns: SET (inactive)
    * Rows: SET (inactive)
    * Digit enables: SET (OFF)
