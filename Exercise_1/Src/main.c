@@ -1,12 +1,10 @@
 /**
  ******************************************************************************
  * @file           : main.c
- * @brief          : Lab 2 - Exercise 2: 4 seven-segment LEDs & DOT (PA4)
- *                   - 7SEG enables on PA6..PA9 (EN0..EN3, PNP active-low)
- *                   - 7SEG segments on PB0..PB6 (Common Anode)
- *                   - Displays '1', '2', '3', '0' (representing 12:30)
- *                   - Each 7SEG stays on for 500ms (cycle = 2000ms, f = 0.5Hz)
- *                   - DOT (PA4) blinks every second
+ * @brief          : Lab 2 - Exercise 3: Implement update7SEG(int index) function
+ *                   using led_buffer[4] = {1, 2, 3, 4}
+ *                   - Invoked in HAL_TIM_PeriodElapsedCallback()
+ *                   - index_led cycles through 0..3
  ******************************************************************************
  */
 #include "main.h"
@@ -18,6 +16,10 @@ static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 
 /* USER CODE BEGIN 0 */
+const int MAX_LED = 4;
+int index_led = 0;
+int led_buffer[4] = {1, 2, 3, 4};
+
 static const uint8_t seg7_code[10] = {
   0x40, 0x79, 0x24, 0x30, 0x19,
   0x12, 0x02, 0x78, 0x00, 0x10
@@ -46,39 +48,57 @@ void setEnablePins(int en0, int en1, int en2, int en3)
   GPIOA->BSRR = set_mask | (reset_mask << 16U);
 }
 
+void update7SEG(int index)
+{
+  switch (index)
+  {
+    case 0:
+      // Display the first 7SEG with led_buffer[0]
+      setEnablePins(0, 1, 1, 1);
+      display7SEG(led_buffer[0]);
+      break;
+    case 1:
+      // Display the second 7SEG with led_buffer[1]
+      setEnablePins(1, 0, 1, 1);
+      display7SEG(led_buffer[1]);
+      break;
+    case 2:
+      // Display the third 7SEG with led_buffer[2]
+      setEnablePins(1, 1, 0, 1);
+      display7SEG(led_buffer[2]);
+      break;
+    case 3:
+      // Display the forth 7SEG with led_buffer[3]
+      setEnablePins(1, 1, 1, 0);
+      display7SEG(led_buffer[3]);
+      break;
+    default:
+      break;
+  }
+}
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   if (htim->Instance == TIM2)
   {
-    static int tick = 0;
-    tick++;
-    if (tick >= 200) tick = 0; // 200 * 10ms = 2000ms = 2s
+    static int timer_counter = 0;
+    static int dot_counter = 0;
 
-    // 4 LEDs display "1 2 3 0" (500ms each)
-    if (tick < 50)
+    // Switch 7SEG every 500ms (50 * 10ms)
+    timer_counter++;
+    if (timer_counter >= 50)
     {
-      setEnablePins(0, 1, 1, 1);
-      display7SEG(1);
-    }
-    else if (tick < 100)
-    {
-      setEnablePins(1, 0, 1, 1);
-      display7SEG(2);
-    }
-    else if (tick < 150)
-    {
-      setEnablePins(1, 1, 0, 1);
-      display7SEG(3);
-    }
-    else
-    {
-      setEnablePins(1, 1, 1, 0);
-      display7SEG(0);
+      timer_counter = 0;
+      update7SEG(index_led);
+      index_led++;
+      if (index_led >= MAX_LED) index_led = 0;
     }
 
-    // Blink DOT (PA4) every 1s (toggle every 100 ticks = 1000ms)
-    if (tick % 100 == 0)
+    // Blink DOT (PA4) every 1s (100 * 10ms)
+    dot_counter++;
+    if (dot_counter >= 100)
     {
+      dot_counter = 0;
       HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_4);
       HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
     }
