@@ -3,15 +3,13 @@
 int hour = 15, minute = 8, second = 50;
 uint8_t led_buffer[LED_NUM] = {1, 2, 3, 0};
 
-/* 7-Segment digit enable pins EN0 -> EN3 on GPIOA */
 static const uint16_t digit_en_pins[LED_NUM] = {
-    GPIO_PIN_6, // EN0
-    GPIO_PIN_7, // EN1
-    GPIO_PIN_8, // EN2
-    GPIO_PIN_9  // EN3
+    GPIO_PIN_6,
+    GPIO_PIN_7,
+    GPIO_PIN_8,
+    GPIO_PIN_9
 };
 
-/* 7-Segment Common Anode code (0 = ON, 1 = OFF) */
 static const uint8_t seg7_code[10] = {
   0x40, 0x79, 0x24, 0x30, 0x19,
   0x12, 0x02, 0x78, 0x00, 0x10
