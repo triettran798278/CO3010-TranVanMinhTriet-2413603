@@ -1,10 +1,10 @@
 /**
  ******************************************************************************
  * @file           : main.c
- * @brief          : Lab 2 - Exercise 3: Implement update7SEG(int index) function
- *                   using led_buffer[4] = {1, 2, 3, 4}
- *                   - Invoked in HAL_TIM_PeriodElapsedCallback()
- *                   - index_led cycles through 0..3
+ * @brief          : Lab 2 - Exercise 4: 1Hz scanning frequency for 4 7-SEG LEDs
+ *                   - Each LED displayed for 250ms (25 * 10ms ticks)
+ *                   - 4 LEDs * 250ms = 1000ms = 1s cycle (f = 1Hz)
+ *                   - DOT (PA4) blinks every second (100 * 10ms = 1000ms)
  ******************************************************************************
  */
 #include "main.h"
@@ -84,9 +84,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     static int timer_counter = 0;
     static int dot_counter = 0;
 
-    // Switch 7SEG every 500ms (50 * 10ms)
+    // Switch 7SEG every 250ms (25 * 10ms) -> 4 * 250ms = 1000ms (1Hz scanning)
     timer_counter++;
-    if (timer_counter >= 50)
+    if (timer_counter >= 25)
     {
       timer_counter = 0;
       update7SEG(index_led);
