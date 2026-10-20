@@ -108,6 +108,8 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_AFIO_CLK_ENABLE();
+  __HAL_AFIO_REMAP_SWJ_NOJTAG();
 
   /*Configure GPIO pin Output Level: Default HIGH (LEDs OFF for active-low) */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_All, GPIO_PIN_SET);
@@ -135,3 +137,4 @@ void Error_Handler(void)
   {
   }
 }
+
