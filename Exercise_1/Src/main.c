@@ -1,9 +1,10 @@
-﻿/**
+/**
  ******************************************************************************
  * @file           : main.c
  * @brief          : Lab 1 - Exercise 3: 4-way traffic light
  *                   Way 1 (Vertical): PA5 (RED1), PA6 (YELLOW1), PA7 (GREEN1)
  *                   Way 2 (Horizontal): PA8 (RED2), PA9 (YELLOW2), PA10 (GREEN2)
+ *                   Wiring: Pin -> 330 Ohm -> LED -> GND (Active-HIGH: SET = ON, RESET = OFF)
  *                   using a single HAL_Delay(1000) at the end of while(1).
  ******************************************************************************
  */
@@ -49,27 +50,27 @@ int main(void)
   {
     if (counter < 3)
     {
-      // Phase 1 (3s): Way 1 RED (5s total), Way 2 GREEN (3s)
-      setTrafficWay1(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_SET);
-      setTrafficWay2(GPIO_PIN_SET, GPIO_PIN_SET, GPIO_PIN_RESET);
+      // Phase 1 (3s): Way 1 RED (5s total), Way 2 GREEN (3s) [Active-HIGH: SET = ON, RESET = OFF]
+      setTrafficWay1(GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_RESET);
+      setTrafficWay2(GPIO_PIN_RESET, GPIO_PIN_RESET, GPIO_PIN_SET);
     }
     else if (counter < 5)
     {
       // Phase 2 (2s): Way 1 still RED, Way 2 YELLOW (2s)
-      setTrafficWay1(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_SET);
-      setTrafficWay2(GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_SET);
+      setTrafficWay1(GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_RESET);
+      setTrafficWay2(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_RESET);
     }
     else if (counter < 8)
     {
       // Phase 3 (3s): Way 1 GREEN (3s), Way 2 RED (5s total)
-      setTrafficWay1(GPIO_PIN_SET, GPIO_PIN_SET, GPIO_PIN_RESET);
-      setTrafficWay2(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_SET);
+      setTrafficWay1(GPIO_PIN_RESET, GPIO_PIN_RESET, GPIO_PIN_SET);
+      setTrafficWay2(GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_RESET);
     }
     else
     {
       // Phase 4 (2s): Way 1 YELLOW (2s), Way 2 still RED
-      setTrafficWay1(GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_SET);
-      setTrafficWay2(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_SET);
+      setTrafficWay1(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_RESET);
+      setTrafficWay2(GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_RESET);
     }
 
     counter++;
@@ -116,8 +117,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_AFIO_CLK_ENABLE();
   __HAL_AFIO_REMAP_SWJ_NOJTAG();
 
-  /*Configure GPIO pin Output Level: Default HIGH (LEDs OFF for active-low) */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_All, GPIO_PIN_SET);
+  /*Configure GPIO pin Output Level: GPIOA LOW (Active-HIGH LEDs OFF), GPIOB HIGH (Common-Anode 7-seg OFF) */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_All, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_All, GPIO_PIN_SET);
 
   /*Configure GPIO pins : PA0..PA15 */
@@ -142,4 +143,3 @@ void Error_Handler(void)
   {
   }
 }
-
