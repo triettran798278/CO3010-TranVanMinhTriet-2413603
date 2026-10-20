@@ -21,9 +21,8 @@ static void MX_GPIO_Init(void);
 #define YELLOW2_Pin GPIO_PIN_9
 #define GREEN2_Pin  GPIO_PIN_10
 
-#define WAY1_MASK   (RED1_Pin | YELLOW1_Pin | GREEN1_Pin)
-#define WAY2_MASK   (RED2_Pin | YELLOW2_Pin | GREEN2_Pin)
-#define ALL_TRAFFIC_MASK (WAY1_MASK | WAY2_MASK)
+#define ALL_TRAFFIC_MASK (RED1_Pin | YELLOW1_Pin | GREEN1_Pin | RED2_Pin | YELLOW2_Pin | GREEN2_Pin)
+#define ALL_SEG7_MASK    (GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6)
 
 static const uint8_t seg7_code[10] = {
   0x40, 0x79, 0x24, 0x30, 0x19,
@@ -33,24 +32,23 @@ static const uint8_t seg7_code[10] = {
 void display7SEG(int num)
 {
   if (num < 0 || num > 9) return;
-  uint32_t set_mask = (uint32_t)(seg7_code[num] & 0x7FU);
-  uint32_t reset_mask = (~set_mask) & 0x7FU;
-  GPIOB->BSRR = set_mask | (reset_mask << 16U);
+  uint8_t pattern = seg7_code[num];
+  for (int i = 0; i < 7; i++)
+  {
+    HAL_GPIO_WritePin(GPIOB, (uint16_t)(1U << i),
+                      (pattern & (1U << i)) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  }
 }
 
 void setTrafficLights(GPIO_PinState r1, GPIO_PinState y1, GPIO_PinState g1,
                       GPIO_PinState r2, GPIO_PinState y2, GPIO_PinState g2)
 {
-  uint32_t set_mask = 0;
-  if (r1 == GPIO_PIN_SET) set_mask |= RED1_Pin;
-  if (y1 == GPIO_PIN_SET) set_mask |= YELLOW1_Pin;
-  if (g1 == GPIO_PIN_SET) set_mask |= GREEN1_Pin;
-  if (r2 == GPIO_PIN_SET) set_mask |= RED2_Pin;
-  if (y2 == GPIO_PIN_SET) set_mask |= YELLOW2_Pin;
-  if (g2 == GPIO_PIN_SET) set_mask |= GREEN2_Pin;
-
-  uint32_t reset_mask = (~set_mask) & ALL_TRAFFIC_MASK;
-  GPIOA->BSRR = set_mask | (reset_mask << 16U);
+  HAL_GPIO_WritePin(GPIOA, RED1_Pin, r1);
+  HAL_GPIO_WritePin(GPIOA, YELLOW1_Pin, y1);
+  HAL_GPIO_WritePin(GPIOA, GREEN1_Pin, g1);
+  HAL_GPIO_WritePin(GPIOA, RED2_Pin, r2);
+  HAL_GPIO_WritePin(GPIOA, YELLOW2_Pin, y2);
+  HAL_GPIO_WritePin(GPIOA, GREEN2_Pin, g2);
 }
 /* USER CODE END 0 */
 
@@ -91,9 +89,10 @@ int main(void)
 
     HAL_Delay(1000);
     tick = (tick + 1) % 10;
-    /* USER CODE END WHILE */
   }
+  /* USER CODE END WHILE */
 }
+
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -125,26 +124,30 @@ static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-  /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
+  /* Enable AFIO clock and configure SWJ to free PB3/PB4 */
   __HAL_RCC_AFIO_CLK_ENABLE();
   __HAL_AFIO_REMAP_SWJ_NOJTAG();
 
-  /*Configure GPIO pin Output Level: GPIOA LOW (Active-HIGH LEDs OFF), GPIOB HIGH (Common-Anode 7-seg OFF) */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_All, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_All, GPIO_PIN_SET);
+  /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /*Configure GPIO pins : PA5..PA10 */
+  /* Configure safe initial output levels for ONLY the used pins:
+   * - GPIOA: PA5..PA10 (Traffic lights) -> LOW (Active-HIGH LEDs OFF)
+   * - GPIOB: PB0..PB6 (7-Segment display) -> HIGH (Common-Anode OFF)
+   */
+  HAL_GPIO_WritePin(GPIOA, ALL_TRAFFIC_MASK, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, ALL_SEG7_MASK, GPIO_PIN_SET);
+
+  /* Configure GPIO pins : PA5..PA10 for traffic lights */
   GPIO_InitStruct.Pin = ALL_TRAFFIC_MASK;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB0..PB6 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3
-                      | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6;
+  /* Configure GPIO pins : PB0..PB6 for 7-Segment display */
+  GPIO_InitStruct.Pin = ALL_SEG7_MASK;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
