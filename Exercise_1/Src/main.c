@@ -16,14 +16,23 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 
-/* USER CODE BEGIN 0 */
-const int MAX_LED = 4;
-int index_led = 0;
-int led_buffer[4] = {0, 0, 0, 0};
+#define MAX_LED 4
+#define DOT_PIN GPIO_PIN_4
+#define D1_PIN  GPIO_PIN_5
+
+static volatile int index_led = 0;
+int led_buffer[MAX_LED] = {0, 0, 0, 0};
 
 int hour = 15;
 int minute = 8;
 int second = 50;
+
+static const uint16_t digit_en_pins[MAX_LED] = {
+    GPIO_PIN_6, // EN0
+    GPIO_PIN_7, // EN1
+    GPIO_PIN_8, // EN2
+    GPIO_PIN_9  // EN3
+};
 
 static const uint8_t seg7_code[10] = {
   0x40, 0x79, 0x24, 0x30, 0x19,
@@ -33,46 +42,25 @@ static const uint8_t seg7_code[10] = {
 void display7SEG(int num)
 {
   if (num < 0 || num > 9) return;
-  uint32_t set_mask = (uint32_t)(seg7_code[num] & 0x7FU);
-  uint32_t reset_mask = (~set_mask) & 0x7FU;
-  GPIOB->BSRR = set_mask | (reset_mask << 16U);
-}
-
-void setEnablePins(int en0, int en1, int en2, int en3)
-{
-  uint32_t set_mask = 0;
-  uint32_t reset_mask = 0;
-
-  if (en0) set_mask |= GPIO_PIN_6; else reset_mask |= GPIO_PIN_6;
-  if (en1) set_mask |= GPIO_PIN_7; else reset_mask |= GPIO_PIN_7;
-  if (en2) set_mask |= GPIO_PIN_8; else reset_mask |= GPIO_PIN_8;
-  if (en3) set_mask |= GPIO_PIN_9; else reset_mask |= GPIO_PIN_9;
-
-  GPIOA->BSRR = set_mask | (reset_mask << 16U);
+  uint8_t pattern = seg7_code[num];
+  for (int i = 0; i < 7; i++)
+  {
+    HAL_GPIO_WritePin(GPIOB, (uint16_t)(1U << i),
+                      (pattern & (1U << i)) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  }
 }
 
 void update7SEG(int index)
 {
-  switch (index)
+  for (uint8_t i = 0; i < MAX_LED; i++)
   {
-    case 0:
-      setEnablePins(0, 1, 1, 1);
-      display7SEG(led_buffer[0]);
-      break;
-    case 1:
-      setEnablePins(1, 0, 1, 1);
-      display7SEG(led_buffer[1]);
-      break;
-    case 2:
-      setEnablePins(1, 1, 0, 1);
-      display7SEG(led_buffer[2]);
-      break;
-    case 3:
-      setEnablePins(1, 1, 1, 0);
-      display7SEG(led_buffer[3]);
-      break;
-    default:
-      break;
+    HAL_GPIO_WritePin(GPIOA, digit_en_pins[i], GPIO_PIN_SET);
+  }
+
+  if (index >= 0 && index < MAX_LED)
+  {
+    HAL_GPIO_WritePin(GPIOA, digit_en_pins[index], GPIO_PIN_RESET);
+    display7SEG(led_buffer[index]);
   }
 }
 
@@ -97,21 +85,19 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     {
       timer_counter = 0;
       update7SEG(index_led);
-      index_led++;
-      if (index_led >= MAX_LED) index_led = 0;
+      index_led = (index_led + 1) % MAX_LED;
     }
 
-    // Blink DOT (PA4) every 1s (100 * 10ms)
+    // Blink DOT (PA4) and D1 (PA5) every 1s (100 * 10ms)
     dot_counter++;
     if (dot_counter >= 100)
     {
       dot_counter = 0;
-      HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_4);
-      HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+      HAL_GPIO_TogglePin(GPIOA, DOT_PIN);
+      HAL_GPIO_TogglePin(GPIOA, D1_PIN);
     }
   }
 }
-/* USER CODE END 0 */
 
 int main(void)
 {
@@ -120,33 +106,30 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM2_Init();
 
-  /* USER CODE BEGIN 2 */
   updateClockBuffer();
+  update7SEG(0);
   HAL_TIM_Base_Start_IT(&htim2);
-  /* USER CODE END 2 */
 
-  /* USER CODE BEGIN WHILE */
   while (1)
   {
+    HAL_Delay(1000);
     second++;
     if (second >= 60)
     {
       second = 0;
       minute++;
-    }
-    if (minute >= 60)
-    {
-      minute = 0;
-      hour++;
-    }
-    if (hour >= 24)
-    {
-      hour = 0;
+      if (minute >= 60)
+      {
+        minute = 0;
+        hour++;
+        if (hour >= 24)
+        {
+          hour = 0;
+        }
+      }
     }
     updateClockBuffer();
-    HAL_Delay(1000);
   }
-  /* USER CODE END WHILE */
 }
 
 void SystemClock_Config(void)
@@ -208,19 +191,21 @@ static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-  /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
+  /* Enable AFIO clock and configure SWJ to free PB3/PB4 */
   __HAL_RCC_AFIO_CLK_ENABLE();
   __HAL_AFIO_REMAP_SWJ_NOJTAG();
 
-  /* Default level: Turn OFF PNP enables (HIGH), DOT (HIGH), LED-RED (HIGH) */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_SET);
-  /* Default level: Turn OFF 7SEG segments (HIGH for Common Anode) */
+  /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /* Default safe level: Turn OFF digit enables (HIGH), DOT (HIGH), LED D1 (HIGH) */
+  HAL_GPIO_WritePin(GPIOA, DOT_PIN | D1_PIN | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_SET);
+  /* Default safe level: Turn OFF 7SEG segments (HIGH for Common Anode) */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6, GPIO_PIN_SET);
 
   /* Configure PA4 (DOT), PA5 (LED-RED), PA6 (EN0), PA7 (EN1), PA8 (EN2), PA9 (EN3) */
-  GPIO_InitStruct.Pin = GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9;
+  GPIO_InitStruct.Pin = DOT_PIN | D1_PIN | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
