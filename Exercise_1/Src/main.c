@@ -22,16 +22,21 @@ static void MX_GPIO_Init(void);
 #define YELLOW2_Pin GPIO_PIN_9
 #define GREEN2_Pin  GPIO_PIN_10
 
-void setTrafficWay1(GPIO_PinState r, GPIO_PinState y, GPIO_PinState g) {
-  HAL_GPIO_WritePin(GPIOA, RED1_Pin, r);
-  HAL_GPIO_WritePin(GPIOA, YELLOW1_Pin, y);
-  HAL_GPIO_WritePin(GPIOA, GREEN1_Pin, g);
-}
+#define ALL_TRAFFIC_MASK (RED1_Pin | YELLOW1_Pin | GREEN1_Pin | RED2_Pin | YELLOW2_Pin | GREEN2_Pin)
 
-void setTrafficWay2(GPIO_PinState r, GPIO_PinState y, GPIO_PinState g) {
-  HAL_GPIO_WritePin(GPIOA, RED2_Pin, r);
-  HAL_GPIO_WritePin(GPIOA, YELLOW2_Pin, y);
-  HAL_GPIO_WritePin(GPIOA, GREEN2_Pin, g);
+void setTrafficLights(GPIO_PinState r1, GPIO_PinState y1, GPIO_PinState g1,
+                      GPIO_PinState r2, GPIO_PinState y2, GPIO_PinState g2)
+{
+  uint32_t set_mask = 0;
+  if (r1 == GPIO_PIN_SET) set_mask |= RED1_Pin;
+  if (y1 == GPIO_PIN_SET) set_mask |= YELLOW1_Pin;
+  if (g1 == GPIO_PIN_SET) set_mask |= GREEN1_Pin;
+  if (r2 == GPIO_PIN_SET) set_mask |= RED2_Pin;
+  if (y2 == GPIO_PIN_SET) set_mask |= YELLOW2_Pin;
+  if (g2 == GPIO_PIN_SET) set_mask |= GREEN2_Pin;
+
+  uint32_t reset_mask = (~set_mask) & ALL_TRAFFIC_MASK;
+  GPIOA->BSRR = set_mask | (reset_mask << 16U);
 }
 /* USER CODE END 0 */
 
@@ -51,26 +56,26 @@ int main(void)
     if (counter < 3)
     {
       // Phase 1 (3s): Way 1 RED (5s total), Way 2 GREEN (3s) [Active-HIGH: SET = ON, RESET = OFF]
-      setTrafficWay1(GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_RESET);
-      setTrafficWay2(GPIO_PIN_RESET, GPIO_PIN_RESET, GPIO_PIN_SET);
+      setTrafficLights(GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_RESET,
+                       GPIO_PIN_RESET, GPIO_PIN_RESET, GPIO_PIN_SET);
     }
     else if (counter < 5)
     {
       // Phase 2 (2s): Way 1 still RED, Way 2 YELLOW (2s)
-      setTrafficWay1(GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_RESET);
-      setTrafficWay2(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_RESET);
+      setTrafficLights(GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_RESET,
+                       GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_RESET);
     }
     else if (counter < 8)
     {
       // Phase 3 (3s): Way 1 GREEN (3s), Way 2 RED (5s total)
-      setTrafficWay1(GPIO_PIN_RESET, GPIO_PIN_RESET, GPIO_PIN_SET);
-      setTrafficWay2(GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_RESET);
+      setTrafficLights(GPIO_PIN_RESET, GPIO_PIN_RESET, GPIO_PIN_SET,
+                       GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_RESET);
     }
     else
     {
       // Phase 4 (2s): Way 1 YELLOW (2s), Way 2 still RED
-      setTrafficWay1(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_RESET);
-      setTrafficWay2(GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_RESET);
+      setTrafficLights(GPIO_PIN_RESET, GPIO_PIN_SET, GPIO_PIN_RESET,
+                       GPIO_PIN_SET, GPIO_PIN_RESET, GPIO_PIN_RESET);
     }
 
     counter++;
@@ -121,15 +126,16 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_All, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_All, GPIO_PIN_SET);
 
-  /*Configure GPIO pins : PA0..PA15 */
-  GPIO_InitStruct.Pin = GPIO_PIN_All;
+  /*Configure GPIO pins : PA5..PA10 */
+  GPIO_InitStruct.Pin = ALL_TRAFFIC_MASK;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB0..PB15 */
-  GPIO_InitStruct.Pin = GPIO_PIN_All;
+  /*Configure GPIO pins : PB0..PB6 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3
+                      | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
