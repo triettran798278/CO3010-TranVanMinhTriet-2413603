@@ -1,11 +1,10 @@
 /**
  ******************************************************************************
  * @file           : main.c
- * @brief          : Lab 2 - Exercise 7: Upgrade Exercise 5 using software timer
- *                   - HAL_Delay(1000) removed from main()
- *                   - 1-second clock tick handled via timer0_flag in main()
- *                   - DOT (PA4) toggled in main()
- *                   - update7SEG() still invoked in timer interrupt every 250ms
+ * @brief          : Lab 2 - Exercise 8: Move update7SEG() to main() using timer1
+ *                   - Interrupt handler ONLY calls timer_run()
+ *                   - timer0 (1000ms): clock timekeeping + DOT toggle
+ *                   - timer1 (250ms): 7-segment display scanning
  ******************************************************************************
  */
 #include "main.h"
@@ -27,12 +26,22 @@ int second = 50;
 
 int timer0_counter = 0;
 int timer0_flag = 0;
+
+int timer1_counter = 0;
+int timer1_flag = 0;
+
 int TIMER_CYCLE = 10;
 
 void setTimer0(int duration)
 {
   timer0_counter = duration / TIMER_CYCLE;
   timer0_flag = 0;
+}
+
+void setTimer1(int duration)
+{
+  timer1_counter = duration / TIMER_CYCLE;
+  timer1_flag = 0;
 }
 
 void timer_run(void)
@@ -43,6 +52,14 @@ void timer_run(void)
     if (timer0_counter == 0)
     {
       timer0_flag = 1;
+    }
+  }
+  if (timer1_counter > 0)
+  {
+    timer1_counter--;
+    if (timer1_counter == 0)
+    {
+      timer1_flag = 1;
     }
   }
 }
@@ -111,17 +128,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   if (htim->Instance == TIM2)
   {
     timer_run();
-
-    // 7SEG scan every 250ms (25 * 10ms)
-    static int scan_counter = 0;
-    scan_counter++;
-    if (scan_counter >= 25)
-    {
-      scan_counter = 0;
-      update7SEG(index_led);
-      index_led++;
-      if (index_led >= MAX_LED) index_led = 0;
-    }
   }
 }
 /* USER CODE END 0 */
@@ -137,11 +143,13 @@ int main(void)
   updateClockBuffer();
   HAL_TIM_Base_Start_IT(&htim2);
   setTimer0(1000);
+  setTimer1(250);
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    // Timer 0: 1-second clock increment & DOT blinking
     if (timer0_flag == 1)
     {
       setTimer0(1000);
@@ -163,9 +171,17 @@ int main(void)
       }
       updateClockBuffer();
 
-      // DOT (PA4) moved to main function
       HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_4);
       HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+    }
+
+    // Timer 1: 250ms 7-segment display scanning
+    if (timer1_flag == 1)
+    {
+      setTimer1(250);
+      update7SEG(index_led);
+      index_led++;
+      if (index_led >= MAX_LED) index_led = 0;
     }
   }
   /* USER CODE END WHILE */
