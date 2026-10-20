@@ -1,10 +1,11 @@
 /**
  ******************************************************************************
  * @file           : main.c
- * @brief          : Lab 2 - Exercise 8: Move update7SEG() to main() using timer1
- *                   - Interrupt handler ONLY calls timer_run()
- *                   - timer0 (1000ms): clock timekeeping + DOT toggle
- *                   - timer1 (250ms): 7-segment display scanning
+ * @brief          : Lab 2 - Exercise 9: 8x8 LED Matrix displaying character 'A'
+ *                   - MATRIX-8X8-RED + ULN2803
+ *                   - Column enables ENM0..ENM7 on PA2..PA9 (via ULN2803)
+ *                   - Row data ROW0..ROW7 on PB8..PB15
+ *                   - updateLEDMatrix(int index) invoked in main() via software timer
  ******************************************************************************
  */
 #include "main.h"
@@ -16,111 +17,91 @@ static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 
 /* USER CODE BEGIN 0 */
-const int MAX_LED = 4;
-int index_led = 0;
-int led_buffer[4] = {0, 0, 0, 0};
+const int MAX_LED_MATRIX = 8;
+int index_led_matrix = 0;
 
-int hour = 15;
-int minute = 8;
-int second = 50;
+// Character 'A' bitmap (8 columns, active-HIGH rows)
+uint8_t matrix_buffer[8] = {
+  0x00, 0x7E, 0x09, 0x09, 0x09, 0x7E, 0x00, 0x00
+};
 
-int timer0_counter = 0;
-int timer0_flag = 0;
-
-int timer1_counter = 0;
-int timer1_flag = 0;
-
+int timer_matrix_counter = 0;
+int timer_matrix_flag = 0;
 int TIMER_CYCLE = 10;
 
-void setTimer0(int duration)
+void setTimerMatrix(int duration)
 {
-  timer0_counter = duration / TIMER_CYCLE;
-  timer0_flag = 0;
-}
-
-void setTimer1(int duration)
-{
-  timer1_counter = duration / TIMER_CYCLE;
-  timer1_flag = 0;
+  timer_matrix_counter = duration / TIMER_CYCLE;
+  timer_matrix_flag = 0;
 }
 
 void timer_run(void)
 {
-  if (timer0_counter > 0)
+  if (timer_matrix_counter > 0)
   {
-    timer0_counter--;
-    if (timer0_counter == 0)
+    timer_matrix_counter--;
+    if (timer_matrix_counter == 0)
     {
-      timer0_flag = 1;
-    }
-  }
-  if (timer1_counter > 0)
-  {
-    timer1_counter--;
-    if (timer1_counter == 0)
-    {
-      timer1_flag = 1;
+      timer_matrix_flag = 1;
     }
   }
 }
 
-static const uint8_t seg7_code[10] = {
-  0x40, 0x79, 0x24, 0x30, 0x19,
-  0x12, 0x02, 0x78, 0x00, 0x10
-};
-
-void display7SEG(int num)
+void setCol(int col)
 {
-  if (num < 0 || num > 9) return;
-  uint32_t set_mask = (uint32_t)(seg7_code[num] & 0x7FU);
-  uint32_t reset_mask = (~set_mask) & 0x7FU;
-  GPIOB->BSRR = set_mask | (reset_mask << 16U);
+  // Column enables ENM0..ENM7 on PA2..PA9 (Active HIGH into ULN2803)
+  uint32_t all_cols = (0xFFU << 2U);
+  uint32_t active_col = (1U << (2 + col));
+  GPIOA->BSRR = active_col | ((all_cols & ~active_col) << 16U);
 }
 
-void setEnablePins(int en0, int en1, int en2, int en3)
+void setRow(uint8_t data)
 {
-  uint32_t set_mask = 0;
-  uint32_t reset_mask = 0;
-
-  if (en0) set_mask |= GPIO_PIN_6; else reset_mask |= GPIO_PIN_6;
-  if (en1) set_mask |= GPIO_PIN_7; else reset_mask |= GPIO_PIN_7;
-  if (en2) set_mask |= GPIO_PIN_8; else reset_mask |= GPIO_PIN_8;
-  if (en3) set_mask |= GPIO_PIN_9; else reset_mask |= GPIO_PIN_9;
-
-  GPIOA->BSRR = set_mask | (reset_mask << 16U);
+  // Rows ROW0..ROW7 on PB8..PB15 (Active HIGH anode)
+  uint32_t val = ((uint32_t)data) << 8U;
+  uint32_t all_rows = (0xFFU << 8U);
+  GPIOB->BSRR = (val & all_rows) | (((~val) & all_rows) << 16U);
 }
 
-void update7SEG(int index)
+void updateLEDMatrix(int index)
 {
   switch (index)
   {
     case 0:
-      setEnablePins(0, 1, 1, 1);
-      display7SEG(led_buffer[0]);
+      setCol(0);
+      setRow(matrix_buffer[0]);
       break;
     case 1:
-      setEnablePins(1, 0, 1, 1);
-      display7SEG(led_buffer[1]);
+      setCol(1);
+      setRow(matrix_buffer[1]);
       break;
     case 2:
-      setEnablePins(1, 1, 0, 1);
-      display7SEG(led_buffer[2]);
+      setCol(2);
+      setRow(matrix_buffer[2]);
       break;
     case 3:
-      setEnablePins(1, 1, 1, 0);
-      display7SEG(led_buffer[3]);
+      setCol(3);
+      setRow(matrix_buffer[3]);
+      break;
+    case 4:
+      setCol(4);
+      setRow(matrix_buffer[4]);
+      break;
+    case 5:
+      setCol(5);
+      setRow(matrix_buffer[5]);
+      break;
+    case 6:
+      setCol(6);
+      setRow(matrix_buffer[6]);
+      break;
+    case 7:
+      setCol(7);
+      setRow(matrix_buffer[7]);
       break;
     default:
       break;
   }
-}
-
-void updateClockBuffer(void)
-{
-  led_buffer[0] = hour / 10;
-  led_buffer[1] = hour % 10;
-  led_buffer[2] = minute / 10;
-  led_buffer[3] = minute % 10;
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -140,48 +121,19 @@ int main(void)
   MX_TIM2_Init();
 
   /* USER CODE BEGIN 2 */
-  updateClockBuffer();
   HAL_TIM_Base_Start_IT(&htim2);
-  setTimer0(1000);
-  setTimer1(250);
+  // Scan each column every 20ms (smooth, non-flickering refresh)
+  setTimerMatrix(20);
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // Timer 0: 1-second clock increment & DOT blinking
-    if (timer0_flag == 1)
+    if (timer_matrix_flag == 1)
     {
-      setTimer0(1000);
-
-      second++;
-      if (second >= 60)
-      {
-        second = 0;
-        minute++;
-      }
-      if (minute >= 60)
-      {
-        minute = 0;
-        hour++;
-      }
-      if (hour >= 24)
-      {
-        hour = 0;
-      }
-      updateClockBuffer();
-
-      HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_4);
-      HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-    }
-
-    // Timer 1: 250ms 7-segment display scanning
-    if (timer1_flag == 1)
-    {
-      setTimer1(250);
-      update7SEG(index_led);
-      index_led++;
-      if (index_led >= MAX_LED) index_led = 0;
+      setTimerMatrix(20);
+      updateLEDMatrix(index_led_matrix);
+      index_led_matrix = (index_led_matrix + 1) % MAX_LED_MATRIX;
     }
   }
   /* USER CODE END WHILE */
@@ -252,20 +204,21 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_AFIO_CLK_ENABLE();
   __HAL_AFIO_REMAP_SWJ_NOJTAG();
 
-  /* Default level: Turn OFF PNP enables (HIGH), DOT (HIGH), LED-RED (HIGH) */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_SET);
-  /* Default level: Turn OFF 7SEG segments (HIGH for Common Anode) */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6, GPIO_PIN_SET);
+  /* Default level: Turn OFF column enables PA2..PA9 (LOW), turn OFF rows PB8..PB15 (LOW) */
+  HAL_GPIO_WritePin(GPIOA, 0xFFFC, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, 0xFFFF, GPIO_PIN_RESET);
 
-  /* Configure PA4 (DOT), PA5 (LED-RED), PA6 (EN0), PA7 (EN1), PA8 (EN2), PA9 (EN3) */
-  GPIO_InitStruct.Pin = GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9;
+  /* Configure PA2..PA9 (Columns ENM0..ENM7) */
+  GPIO_InitStruct.Pin = GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5
+                      | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /* Configure PB0..PB6 for 7SEG */
-  GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6;
+  /* Configure PB8..PB15 (Rows ROW0..ROW7) */
+  GPIO_InitStruct.Pin = GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11
+                      | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
