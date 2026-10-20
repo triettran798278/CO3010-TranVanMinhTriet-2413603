@@ -1,12 +1,3 @@
-/**
- ******************************************************************************
- * @file           : main.c
- * @brief          : Lab 2 - Exercise 10: 8x8 LED Matrix marquee animation
- *                   - Character 'A' shifted to the left smoothly
- *                   - Modular architecture (.h and .c files)
- *                   - Software timers (TIM2 10ms interrupt)
- ******************************************************************************
- */
 #include "main.h"
 #include "software_timer.h"
 #include "seg7.h"
@@ -47,15 +38,14 @@ int main(void)
 
   HAL_TIM_Base_Start_IT(&htim2);
 
-  setTimer(0, 1000); // Timer 0: 1 second clock increment
-  setTimer(1, 250);  // Timer 1: 250 ms 7-seg scanning
-  setTimer(2, 500);  // Timer 2: 500 ms DOT toggle
-  setTimer(3, 50);   // Timer 3: 50 ms matrix column scanning
-  setTimer(4, 500);  // Timer 4: 500 ms marquee scroll left animation
+  setTimer(0, 1000);
+  setTimer(1, 250);
+  setTimer(2, 500);
+  setTimer(3, 50);
+  setTimer(4, 500);
 
   while (1)
   {
-    // Timer 0: 1 second clock increment
     if (timer_flag[0])
     {
       timer_flag[0] = 0;
@@ -78,7 +68,6 @@ int main(void)
       updateClockBuffer();
     }
 
-    // Timer 1: 7-segment scanning
     if (timer_flag[1])
     {
       timer_flag[1] = 0;
@@ -87,7 +76,6 @@ int main(void)
       current_seg7_digit = (current_seg7_digit + 1) % LED_NUM;
     }
 
-    // Timer 2: Toggle DOT & D1
     if (timer_flag[2])
     {
       timer_flag[2] = 0;
@@ -96,7 +84,6 @@ int main(void)
       HAL_GPIO_TogglePin(GPIOA, LED_D1_PIN);
     }
 
-    // Timer 3: 8x8 LED Matrix scanning
     if (timer_flag[3])
     {
       timer_flag[3] = 0;
@@ -105,7 +92,6 @@ int main(void)
       current_matrix_col = (current_matrix_col + 1) % MAX_LED_MATRIX;
     }
 
-    // Timer 4: Marquee shift character 'A' left
     if (timer_flag[4])
     {
       timer_flag[4] = 0;
@@ -174,28 +160,18 @@ static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-  /* Enable AFIO clock and disable JTAG/SWD to release PA13, PA14, PA15, PB3, PB4 */
   __HAL_RCC_AFIO_CLK_ENABLE();
   __HAL_AFIO_REMAP_SWJ_DISABLE();
 
-  /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /* Set default safe pin states:
-   * Columns: SET (inactive)
-   * Rows: SET (inactive)
-   * Digit enables: SET (OFF)
-   * Segments: SET (OFF)
-   * DOT: SET (OFF)
-   */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_6 | GPIO_PIN_7
                          | GPIO_PIN_8 | GPIO_PIN_9 | GPIO_PIN_10 | GPIO_PIN_11
                          | GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15, GPIO_PIN_SET);
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4 | GPIO_PIN_5, GPIO_PIN_SET);
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_All, GPIO_PIN_SET);
 
-  /* Configure GPIO pins for GPIOA */
   GPIO_InitStruct.Pin = GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5
                       | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9
                       | GPIO_PIN_10 | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13
@@ -205,7 +181,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /* Configure GPIO pins for GPIOB */
   GPIO_InitStruct.Pin = GPIO_PIN_All;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;

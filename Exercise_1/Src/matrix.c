@@ -3,36 +3,32 @@
 #define MATRIX_ROW_PORT GPIOB
 #define MATRIX_COL_PORT GPIOA
 
-/* Row pins PB8 -> PB15 (Cathodes in Proteus MATRIX-8X8-RED) */
 static const uint16_t matrix_row_pins[MAX_LED_MATRIX] = {
-    GPIO_PIN_8,  // ROW0
-    GPIO_PIN_9,  // ROW1
-    GPIO_PIN_10, // ROW2
-    GPIO_PIN_11, // ROW3
-    GPIO_PIN_12, // ROW4
-    GPIO_PIN_13, // ROW5
-    GPIO_PIN_14, // ROW6
-    GPIO_PIN_15  // ROW7
+    GPIO_PIN_8,
+    GPIO_PIN_9,
+    GPIO_PIN_10,
+    GPIO_PIN_11,
+    GPIO_PIN_12,
+    GPIO_PIN_13,
+    GPIO_PIN_14,
+    GPIO_PIN_15
 };
 
-/* Column enable pins ENM0 -> ENM7 (ULN2803 inputs on GPIOA) */
 static const uint16_t matrix_col_pins[MAX_LED_MATRIX] = {
-    GPIO_PIN_2,  // ENM0 -> COL0
-    GPIO_PIN_3,  // ENM1 -> COL1
-    GPIO_PIN_10, // ENM2 -> COL2
-    GPIO_PIN_11, // ENM3 -> COL3
-    GPIO_PIN_12, // ENM4 -> COL4
-    GPIO_PIN_13, // ENM5 -> COL5
-    GPIO_PIN_14, // ENM6 -> COL6
-    GPIO_PIN_15  // ENM7 -> COL7
+    GPIO_PIN_2,
+    GPIO_PIN_3,
+    GPIO_PIN_10,
+    GPIO_PIN_11,
+    GPIO_PIN_12,
+    GPIO_PIN_13,
+    GPIO_PIN_14,
+    GPIO_PIN_15
 };
 
-/* 8x8 LED Matrix active display buffer */
 uint8_t matrix_bitmap[MAX_LED_MATRIX] = {
     0x00, 0xFC, 0x12, 0x11, 0x11, 0x12, 0xFC, 0x00
 };
 
-/* 16-column scroll buffer: 'A' followed by 8 blank columns */
 static const uint8_t matrix_scroll_data[MATRIX_SCROLL_WIDTH] = {
     0x00, 0xFC, 0x12, 0x11, 0x11, 0x12, 0xFC, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
@@ -56,13 +52,10 @@ void updateMatrixRows(uint8_t col_index)
   if (col_index >= MAX_LED_MATRIX)
     return;
 
-  // Turn off all columns and rows first
   clearMatrix();
 
-  // Enable active column: RESET allows pull-up resistor to pull column up to +3.3V
   HAL_GPIO_WritePin(MATRIX_COL_PORT, matrix_col_pins[col_index], GPIO_PIN_RESET);
 
-  // Set rows: bit=1 -> RESET pulls cathode to GND -> LED ON; bit=0 -> SET (+3.3V) -> LED OFF
   uint8_t row_data = matrix_bitmap[col_index];
   for (uint8_t row = 0; row < MAX_LED_MATRIX; row++)
   {
