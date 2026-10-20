@@ -41,7 +41,7 @@ echo.
 echo ==============================================================
 echo [THANH CONG] Da build xong branch [%CURRENT_BRANCH%]!
 echo  - File HEX cho Proteus: %~dp0Debug\Exercise_1.hex
-echo  - File Proteus        : C:\Users\Triet\Documents\Year3\VXL\lab1.pdsprj
+echo  - File Proteus        : C:\Users\Triet\Documents\Year3\VXL\lab2.pdsprj (hoac lab2_ex2.pdsprj)
 echo ==============================================================
 
 if "%1"=="--flash" (
