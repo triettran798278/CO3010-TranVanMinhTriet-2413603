@@ -1,13 +1,12 @@
 /**
  ******************************************************************************
  * @file           : main.c
- * @brief          : Lab 2 - Exercise 1: Timer interrupt with 2 7-segment LEDs
- *                   - TIM2 interrupt: 10ms (PSC=7999, ARR=9 @ 8MHz HSI)
- *                   - 7SEG 1 enabled by EN0 (PA6, PNP active-low)
- *                   - 7SEG 2 enabled by EN1 (PA7, PNP active-low)
- *                   - Segments a..g connected to PB0..PB6 (Common Anode)
- *                   - Displays '1' on 7SEG 1 and '2' on 7SEG 2 alternately (500ms each)
- *                   - LED-RED on PA5 toggles
+ * @brief          : Lab 2 - Exercise 2: 4 seven-segment LEDs & DOT (PA4)
+ *                   - 7SEG enables on PA6..PA9 (EN0..EN3, PNP active-low)
+ *                   - 7SEG segments on PB0..PB6 (Common Anode)
+ *                   - Displays '1', '2', '3', '0' (representing 12:30)
+ *                   - Each 7SEG stays on for 500ms (cycle = 2000ms, f = 0.5Hz)
+ *                   - DOT (PA4) blinks every second
  ******************************************************************************
  */
 #include "main.h"
@@ -32,32 +31,55 @@ void display7SEG(int num)
   GPIOB->BSRR = set_mask | (reset_mask << 16U);
 }
 
+void setEnablePins(int en0, int en1, int en2, int en3)
+{
+  // PA6=EN0, PA7=EN1, PA8=EN2, PA9=EN3
+  // 0 = ON (RESET), 1 = OFF (SET)
+  uint32_t set_mask = 0;
+  uint32_t reset_mask = 0;
+
+  if (en0) set_mask |= GPIO_PIN_6; else reset_mask |= GPIO_PIN_6;
+  if (en1) set_mask |= GPIO_PIN_7; else reset_mask |= GPIO_PIN_7;
+  if (en2) set_mask |= GPIO_PIN_8; else reset_mask |= GPIO_PIN_8;
+  if (en3) set_mask |= GPIO_PIN_9; else reset_mask |= GPIO_PIN_9;
+
+  GPIOA->BSRR = set_mask | (reset_mask << 16U);
+}
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   if (htim->Instance == TIM2)
   {
     static int tick = 0;
     tick++;
-    if (tick >= 100) tick = 0; // 100 * 10ms = 1000ms = 1s
+    if (tick >= 200) tick = 0; // 200 * 10ms = 2000ms = 2s
 
+    // 4 LEDs display "1 2 3 0" (500ms each)
     if (tick < 50)
     {
-      // First 500ms: Display "1" on 7SEG 1 (EN0 = LOW, EN1 = HIGH)
-      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
-      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
+      setEnablePins(0, 1, 1, 1);
       display7SEG(1);
+    }
+    else if (tick < 100)
+    {
+      setEnablePins(1, 0, 1, 1);
+      display7SEG(2);
+    }
+    else if (tick < 150)
+    {
+      setEnablePins(1, 1, 0, 1);
+      display7SEG(3);
     }
     else
     {
-      // Second 500ms: Display "2" on 7SEG 2 (EN0 = HIGH, EN1 = LOW)
-      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_SET);
-      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_RESET);
-      display7SEG(2);
+      setEnablePins(1, 1, 1, 0);
+      display7SEG(0);
     }
 
-    // Toggle LED-RED on PA5 every second (at tick == 0)
-    if (tick == 0)
+    // Blink DOT (PA4) every 1s (toggle every 100 ticks = 1000ms)
+    if (tick % 100 == 0)
     {
+      HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_4);
       HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
     }
   }
@@ -148,7 +170,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_AFIO_CLK_ENABLE();
   __HAL_AFIO_REMAP_SWJ_NOJTAG();
 
-  /* Default level: Turn OFF PNP enables (HIGH) and LED-RED (HIGH) */
+  /* Default level: Turn OFF PNP enables (HIGH), DOT (HIGH), LED-RED (HIGH) */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_SET);
   /* Default level: Turn OFF 7SEG segments (HIGH for Common Anode) */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6, GPIO_PIN_SET);
