@@ -54,7 +54,7 @@ int main(void)
     setNumberOnClock(minute / 5);
     setNumberOnClock(second / 5);
 
-    HAL_Delay(1000);
+    HAL_Delay(100);
 
     second++;
     if (second >= 60)
