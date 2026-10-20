@@ -1,11 +1,11 @@
 /**
  ******************************************************************************
  * @file           : main.c
- * @brief          : Lab 2 - Exercise 9: 8x8 LED Matrix displaying character 'A'
- *                   - MATRIX-8X8-RED + ULN2803
- *                   - Column enables ENM0..ENM7 on PA2..PA9 (via ULN2803)
- *                   - Row data ROW0..ROW7 on PB8..PB15
- *                   - updateLEDMatrix(int index) invoked in main() via software timer
+ * @brief          : Lab 2 - Exercise 10: 8x8 LED Matrix marquee animation
+ *                   - Character 'A' continuously shifted to the left
+ *                   - Columns refreshed every 20ms (timer_matrix)
+ *                   - Shift animation triggered every 300ms (timer_shift)
+ *                   - Handled non-blocking in main() using software timers
  ******************************************************************************
  */
 #include "main.h"
@@ -20,19 +20,29 @@ static void MX_TIM2_Init(void);
 const int MAX_LED_MATRIX = 8;
 int index_led_matrix = 0;
 
-// Character 'A' bitmap (8 columns, active-HIGH rows)
+// Character 'A' bitmap (8 columns)
 uint8_t matrix_buffer[8] = {
   0x00, 0x7E, 0x09, 0x09, 0x09, 0x7E, 0x00, 0x00
 };
 
 int timer_matrix_counter = 0;
 int timer_matrix_flag = 0;
+
+int timer_shift_counter = 0;
+int timer_shift_flag = 0;
+
 int TIMER_CYCLE = 10;
 
 void setTimerMatrix(int duration)
 {
   timer_matrix_counter = duration / TIMER_CYCLE;
   timer_matrix_flag = 0;
+}
+
+void setTimerShift(int duration)
+{
+  timer_shift_counter = duration / TIMER_CYCLE;
+  timer_shift_flag = 0;
 }
 
 void timer_run(void)
@@ -43,6 +53,14 @@ void timer_run(void)
     if (timer_matrix_counter == 0)
     {
       timer_matrix_flag = 1;
+    }
+  }
+  if (timer_shift_counter > 0)
+  {
+    timer_shift_counter--;
+    if (timer_shift_counter == 0)
+    {
+      timer_shift_flag = 1;
     }
   }
 }
@@ -104,6 +122,16 @@ void updateLEDMatrix(int index)
   }
 }
 
+void shiftLeft(void)
+{
+  uint8_t temp = matrix_buffer[0];
+  for (int i = 0; i < MAX_LED_MATRIX - 1; i++)
+  {
+    matrix_buffer[i] = matrix_buffer[i + 1];
+  }
+  matrix_buffer[MAX_LED_MATRIX - 1] = temp;
+}
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   if (htim->Instance == TIM2)
@@ -122,18 +150,26 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim2);
-  // Scan each column every 20ms (smooth, non-flickering refresh)
-  setTimerMatrix(20);
+  setTimerMatrix(20);  // 20ms per column scanning
+  setTimerShift(300);  // 300ms per shift step
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    // Refresh LED matrix display
     if (timer_matrix_flag == 1)
     {
       setTimerMatrix(20);
       updateLEDMatrix(index_led_matrix);
       index_led_matrix = (index_led_matrix + 1) % MAX_LED_MATRIX;
+    }
+
+    // Shift pattern left
+    if (timer_shift_flag == 1)
+    {
+      setTimerShift(300);
+      shiftLeft();
     }
   }
   /* USER CODE END WHILE */
