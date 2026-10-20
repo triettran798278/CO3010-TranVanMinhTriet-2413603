@@ -12,6 +12,9 @@ file(GLOB HAL_SOURCES "Drivers/STM32F1xx_HAL_Driver/Src/*.c")
 
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Src/main.c
+    Src/software_timer.c
+    Src/seg7.c
+    Src/matrix.c
     Src/stm32f1xx_it.c
     Src/stm32f1xx_hal_msp.c
     Src/system_stm32f1xx.c
